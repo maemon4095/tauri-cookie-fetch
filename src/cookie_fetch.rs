@@ -16,10 +16,15 @@ use self::{headermap::HeaderMap, method::Method};
 #[serde(rename_all = "camelCase")]
 struct FetchOptions {
     response_type: PayloadType,
+    #[serde(default = "default_method")]
     method: Method,
     headers: Option<HeaderMap>,
     cookies: Option<HashMap<String, String>>,
     body: Option<Body>,
+}
+
+fn default_method() -> Method {
+    Method::GET
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]

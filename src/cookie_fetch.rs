@@ -8,7 +8,7 @@ use tauri::{
     Manager, Runtime, State,
 };
 
-use crate::cookie_client::{CookieClient, CookieClientPool};
+use crate::cookie_client::{CookieClient, CookieClientPool, RedirectPolicy};
 
 use self::{headermap::HeaderMap, method::Method};
 
@@ -20,11 +20,19 @@ struct FetchOptions {
     method: Method,
     headers: Option<HeaderMap>,
     cookies: Option<HashMap<String, String>>,
+    redirect: Option<Redirect>,
     body: Option<Body>,
 }
 
 fn default_method() -> Method {
     Method::GET
+}
+
+#[derive(Debug, serde::Deserialize)]
+#[serde(tag = "type", rename_all = "camelCase")]
+enum Redirect {
+    None,
+    Limited { max: usize },
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
@@ -36,8 +44,7 @@ enum PayloadType {
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
-#[serde(tag = "type", content = "payload")]
-#[serde(rename_all = "camelCase")]
+#[serde(tag = "type", content = "payload", rename_all = "camelCase")]
 enum Body {
     Binary(Vec<u8>),
     Text(String),
@@ -106,6 +113,14 @@ async fn fetch(
             }
         }
     };
+
+    if let Some(policy) = options.redirect {
+        let mut redirect_policy = client.redirect_policy();
+        match policy {
+            Redirect::None => *redirect_policy = RedirectPolicy::none(),
+            Redirect::Limited { max } => *redirect_policy = RedirectPolicy::limited(max),
+        }
+    }
 
     let builder = client.request(options.method.into(), url);
 

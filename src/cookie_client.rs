@@ -1,8 +1,44 @@
-use std::sync::{Arc, MutexGuard};
+use std::sync::{Arc, Mutex, MutexGuard};
+
+use reqwest::redirect::{self, Attempt};
 struct ClientPoolManager;
 pub struct CookieClient {
     client: reqwest::Client,
     cookie_store: Arc<reqwest_cookie_store::CookieStoreMutex>,
+    redirect_policy: Arc<Mutex<RedirectPolicy>>,
+}
+
+pub enum RedirectPolicy {
+    None,
+    Limited(usize),
+}
+
+impl RedirectPolicy {
+    pub fn none() -> Self {
+        Self::None
+    }
+
+    pub fn limited(max: usize) -> Self {
+        Self::Limited(max)
+    }
+
+    fn check(&mut self, attempt: Attempt<'_>) -> redirect::Action {
+        match self {
+            RedirectPolicy::None => attempt.follow(),
+            RedirectPolicy::Limited(n) => {
+                if *n == 0 {
+                    attempt.stop()
+                } else {
+                    *n -= 1;
+                    attempt.follow()
+                }
+            }
+        }
+    }
+}
+
+fn default_redirect_policy() -> RedirectPolicy {
+    RedirectPolicy::limited(10)
 }
 
 impl CookieClient {
@@ -17,6 +53,10 @@ impl CookieClient {
     pub fn cookie_store<'a>(&'a self) -> MutexGuard<'a, reqwest_cookie_store::CookieStore> {
         self.cookie_store.lock().unwrap()
     }
+
+    pub fn redirect_policy<'a>(&'a self) -> MutexGuard<'a, RedirectPolicy> {
+        self.redirect_policy.lock().unwrap()
+    }
 }
 
 #[async_trait::async_trait]
@@ -25,17 +65,26 @@ impl deadpool::managed::Manager for ClientPoolManager {
     type Error = ();
 
     async fn create(&self) -> Result<Self::Type, Self::Error> {
+        let redirect_policy = default_redirect_policy();
+        let redirect_policy = Mutex::new(redirect_policy);
+        let redirect_policy = Arc::new(redirect_policy);
+
         let cookie_store = reqwest_cookie_store::CookieStore::new(None);
         let cookie_store = reqwest_cookie_store::CookieStoreMutex::new(cookie_store);
-        let cookie_store = std::sync::Arc::new(cookie_store);
+        let cookie_store = Arc::new(cookie_store);
         let client = reqwest::Client::builder()
             .cookie_provider(Arc::clone(&cookie_store))
+            .redirect(redirect::Policy::custom({
+                let policy = redirect_policy.clone();
+                move |a| policy.lock().unwrap().check(a)
+            }))
             .build()
             .unwrap();
 
         Ok(CookieClient {
             client,
             cookie_store,
+            redirect_policy,
         })
     }
 
@@ -44,8 +93,10 @@ impl deadpool::managed::Manager for ClientPoolManager {
         value: &mut Self::Type,
         _: &deadpool::managed::Metrics,
     ) -> deadpool::managed::RecycleResult<Self::Error> {
-        let mut cookie_store = value.cookie_store.lock().unwrap();
+        let mut cookie_store = value.cookie_store();
         cookie_store.clear();
+        let mut redirect_policy = value.redirect_policy();
+        *redirect_policy = default_redirect_policy();
         Ok(())
     }
 }

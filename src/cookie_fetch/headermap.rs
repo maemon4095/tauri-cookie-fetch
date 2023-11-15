@@ -41,6 +41,12 @@ impl Into<reqwest::header::HeaderMap> for HeaderMap {
     }
 }
 
+impl From<reqwest::header::HeaderMap> for HeaderMap {
+    fn from(value: reqwest::header::HeaderMap) -> Self {
+        Self(value)
+    }
+}
+
 impl serde::Serialize for HeaderMap {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where

@@ -6,42 +6,12 @@ pub struct CookieClient {
 }
 
 impl CookieClient {
-    pub fn get<U: reqwest::IntoUrl>(&self, url: U) -> reqwest::RequestBuilder {
-        self.client.get(url)
-    }
-
-    pub fn post<U: reqwest::IntoUrl>(&self, url: U) -> reqwest::RequestBuilder {
-        self.client.post(url)
-    }
-
-    pub fn put<U: reqwest::IntoUrl>(&self, url: U) -> reqwest::RequestBuilder {
-        self.client.put(url)
-    }
-
-    pub fn patch<U: reqwest::IntoUrl>(&self, url: U) -> reqwest::RequestBuilder {
-        self.client.patch(url)
-    }
-
-    pub fn delete<U: reqwest::IntoUrl>(&self, url: U) -> reqwest::RequestBuilder {
-        self.client.delete(url)
-    }
-
-    pub fn head<U: reqwest::IntoUrl>(&self, url: U) -> reqwest::RequestBuilder {
-        self.client.head(url)
-    }
-
     pub fn request<U: reqwest::IntoUrl>(
         &self,
         method: reqwest::Method,
         url: U,
     ) -> reqwest::RequestBuilder {
         self.client.request(method, url)
-    }
-    pub fn execute(
-        &self,
-        request: reqwest::Request,
-    ) -> impl std::future::Future<Output = Result<reqwest::Response, reqwest::Error>> {
-        self.client.execute(request)
     }
 
     pub fn cookie_store<'a>(&'a self) -> MutexGuard<'a, reqwest_cookie_store::CookieStore> {

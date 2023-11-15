@@ -13,7 +13,9 @@ use crate::cookie_client::CookieClientPool;
 use self::{headermap::HeaderMap, method::Method};
 
 #[derive(Debug, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct FetchOptions {
+    response_type: PayloadType,
     method: Method,
     headers: Option<HeaderMap>,
     cookies: Option<HashMap<String, String>>,
@@ -21,9 +23,18 @@ struct FetchOptions {
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+enum PayloadType {
+    Binary,
+    Text,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
 #[serde(tag = "type", content = "payload")]
+#[serde(rename_all = "camelCase")]
 enum Body {
     Binary(Vec<u8>),
+    Text(String),
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -70,8 +81,14 @@ async fn fetch(
     };
 
     let Some(options) = options else {
-        return proxy(client.request(reqwest::Method::GET, url).send()).await;
+        return proxy(
+            PayloadType::Binary,
+            client.request(reqwest::Method::GET, url).send(),
+        )
+        .await;
     };
+
+    let response_type = options.response_type;
 
     if let Some(cookies) = options.cookies {
         let mut cookies_store = client.cookie_store();
@@ -94,16 +111,18 @@ async fn fetch(
     let builder = if let Some(body) = options.body {
         let body = match body {
             Body::Binary(vec) => reqwest::Body::from(vec),
+            Body::Text(text) => reqwest::Body::from(text),
         };
         builder.body(body)
     } else {
         builder
     };
 
-    return proxy(builder.send()).await;
+    return proxy(response_type, builder.send()).await;
 }
 
 async fn proxy(
+    response_type: PayloadType,
     future: impl Future<Output = Result<reqwest::Response, reqwest::Error>>,
 ) -> Result<Response, Error> {
     let res = match future.await {
@@ -120,9 +139,15 @@ async fn proxy(
     let status = res.status().as_u16();
     let headers = res.headers().clone().into();
 
-    let body = match res.bytes().await {
-        Ok(v) => Body::Binary(v.to_vec()),
-        Err(e) => return Err(Error::from(e)),
+    let body = match response_type {
+        PayloadType::Binary => match res.bytes().await {
+            Ok(v) => Body::Binary(v.to_vec()),
+            Err(e) => return Err(Error::from(e)),
+        },
+        PayloadType::Text => match res.text().await {
+            Ok(v) => Body::Text(v),
+            Err(e) => return Err(Error::from(e)),
+        },
     };
 
     let res = Response {

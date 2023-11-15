@@ -32,6 +32,7 @@ fn default_method() -> Method {
 enum PayloadType {
     Binary,
     Text,
+    Discard,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
@@ -48,7 +49,7 @@ struct Response {
     status: u16,
     headers: HeaderMap,
     cookies: HashMap<String, String>,
-    body: Body,
+    body: Option<Body>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -149,13 +150,14 @@ async fn proxy(
 
     let body = match response_type {
         PayloadType::Binary => match res.bytes().await {
-            Ok(v) => Body::Binary(v.to_vec()),
+            Ok(v) => Some(Body::Binary(v.to_vec())),
             Err(e) => return Err(Error::from(e)),
         },
         PayloadType::Text => match res.text().await {
-            Ok(v) => Body::Text(v),
+            Ok(v) => Some(Body::Text(v)),
             Err(e) => return Err(Error::from(e)),
         },
+        PayloadType::Discard => None,
     };
 
     let res = Response {

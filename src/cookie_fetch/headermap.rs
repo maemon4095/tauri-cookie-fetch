@@ -62,6 +62,24 @@ impl serde::Serialize for HeaderMap {
     }
 }
 
+struct GetAllWrapper<'a>(reqwest::header::GetAll<'a, HeaderValue>);
+
+impl<'a> serde::Serialize for GetAllWrapper<'a> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let mut seq = serializer.serialize_seq(None)?;
+        for val in self.0.iter() {
+            match val.to_str() {
+                Ok(s) => seq.serialize_element(s)?,
+                Err(e) => return Err(<S::Error as serde::ser::Error>::custom(e.to_string())),
+            }
+        }
+        seq.end()
+    }
+}
+
 impl<'de> serde::Deserialize<'de> for HeaderMap {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -91,7 +109,7 @@ impl<'de> serde::Deserialize<'de> for HeaderMap {
                     let key = match HeaderName::from_str(key) {
                         Ok(k) => k,
                         Err(e) => {
-                            return Err(<A::Error as serde::de::Error>::custom(e.to_string()))
+                            return Err(<A::Error as serde::de::Error>::custom(e.to_string()));
                         }
                     };
 
@@ -102,25 +120,7 @@ impl<'de> serde::Deserialize<'de> for HeaderMap {
             }
         }
 
-        deserializer.deserialize_str(Visitor)
-    }
-}
-
-struct GetAllWrapper<'a>(reqwest::header::GetAll<'a, HeaderValue>);
-
-impl<'a> serde::Serialize for GetAllWrapper<'a> {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        let mut seq = serializer.serialize_seq(None)?;
-        for val in self.0.iter() {
-            match val.to_str() {
-                Ok(s) => seq.serialize_element(s)?,
-                Err(e) => return Err(<S::Error as serde::ser::Error>::custom(e.to_string())),
-            }
-        }
-        seq.end()
+        deserializer.deserialize_map(Visitor)
     }
 }
 
@@ -159,5 +159,39 @@ impl<'de, 'a> DeserializeSeed<'de> for HeaderMapValueSeed<'a> {
         }
 
         deserializer.deserialize_seq(Visitor(self.0, self.1))
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use std::collections::HashSet;
+
+    use super::*;
+
+    #[test]
+    fn deserialize_headermap() {
+        let result = serde_json::from_str(r#"{"k":["v0","v1","v2"]}"#);
+        let headermap: HeaderMap = result.unwrap();
+
+        let set: HashSet<&str> = headermap
+            .get_all("k")
+            .iter()
+            .map(|e| e.to_str().unwrap())
+            .collect();
+
+        assert_eq!(set, HashSet::from(["v0", "v1", "v2"]));
+    }
+
+    #[test]
+    fn serialize_headermap() {
+        let mut map = HeaderMap::new();
+
+        map.append("k", HeaderValue::from_str("v0").unwrap());
+        map.append("k", HeaderValue::from_str("v1").unwrap());
+        map.append("k", HeaderValue::from_str("v2").unwrap());
+
+        let result = serde_json::to_string(&map).unwrap();
+
+        assert_eq!(&result, r#"{"k":["v0","v1","v2"]}"#);
     }
 }

@@ -8,7 +8,7 @@ use tauri::{
     Manager, Runtime, State,
 };
 
-use crate::cookie_client::CookieClientPool;
+use crate::cookie_client::{CookieClient, CookieClientPool};
 
 use self::{headermap::HeaderMap, method::Method};
 
@@ -87,6 +87,7 @@ async fn fetch(
 
     let Some(options) = options else {
         return proxy(
+            &client,
             PayloadType::Binary,
             client.request(reqwest::Method::GET, url).send(),
         )
@@ -123,10 +124,11 @@ async fn fetch(
         builder
     };
 
-    return proxy(response_type, builder.send()).await;
+    return proxy(&client, response_type, builder.send()).await;
 }
 
 async fn proxy(
+    client: &CookieClient,
     response_type: PayloadType,
     future: impl Future<Output = Result<reqwest::Response, reqwest::Error>>,
 ) -> Result<Response, Error> {
@@ -135,9 +137,10 @@ async fn proxy(
         Err(e) => return Err(Error::from(e)),
     };
 
-    let cookies: HashMap<String, String> = res
-        .cookies()
-        .map(|c| (c.name().to_string(), c.value().to_string()))
+    let cookies: HashMap<String, String> = client
+        .cookie_store()
+        .iter_any()
+        .map(|e| (e.name().to_string(), e.value().to_string()))
         .collect();
 
     let url = res.url().to_string();

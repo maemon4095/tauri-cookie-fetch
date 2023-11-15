@@ -32,7 +32,7 @@ struct Response {
     status: u16,
     headers: HeaderMap,
     cookies: HashMap<String, String>,
-    body: Vec<u8>,
+    body: Body,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -121,7 +121,7 @@ async fn proxy(
     let headers = res.headers().clone().into();
 
     let body = match res.bytes().await {
-        Ok(v) => v.to_vec(),
+        Ok(v) => Body::Binary(v.to_vec()),
         Err(e) => return Err(Error::from(e)),
     };
 

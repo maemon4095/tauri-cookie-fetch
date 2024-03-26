@@ -3,7 +3,9 @@ import { customSchemeLocalHost } from "./utils.ts";
 
 const { listen } = TAURI.event;
 const { invoke } = TAURI.tauri;
-type UnlistenFn = TAURI.event.UnlistenFn;
+
+const readyToPopListeners = {} as { [id: number]: undefined | (() => void) | (() => Promise<unknown>); };
+await listen<number>("cookie-fetch-ipc:ready-to-pop", async (e) => await readyToPopListeners[e.payload]?.());
 
 const cookieFetchLocalHost = await customSchemeLocalHost("cookie-fetch-ipc");
 export async function connect() {
@@ -27,15 +29,10 @@ export async function connect() {
         }
     });
 
-    let unlisten: UnlistenFn;
     const downstream = new ReadableStream({
         type: "bytes",
-        async start(controller) {
-            unlisten = await listen<number>("cookie-fetch-ipc:ready-to-pop", async (e) => {
-                if (e.payload !== id) {
-                    return;
-                }
-
+        start(controller) {
+            readyToPopListeners[id] = async () => {
                 const res = await fetch(popURL, {
                     method: "POST",
                 });
@@ -54,10 +51,10 @@ export async function connect() {
                         break;
                     }
                 }
-            });
+            };
         },
         async cancel() {
-            unlisten();
+            delete readyToPopListeners[id];
             await fetch(closeDownstreamURL, {
                 method: "POST",
             });

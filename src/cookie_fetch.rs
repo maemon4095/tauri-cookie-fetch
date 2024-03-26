@@ -1,62 +1,47 @@
 mod headermap;
 mod method;
+mod redirect;
 
-use std::{collections::HashMap, future::Future};
-
-use tauri::{
-    plugin::{Builder, TauriPlugin},
-    Manager, Runtime, State,
+use crate::{
+    cookie_client::{CookieClient, CookieClientPool, RedirectPolicy},
+    cookie_fetch_ipc::{IpcSession, IpcState},
 };
-
-use crate::cookie_client::{CookieClient, CookieClientPool, RedirectPolicy};
-
-use self::{headermap::HeaderMap, method::Method};
+use futures::{SinkExt, Stream, StreamExt, TryStream};
+use headermap::HeaderMap;
+use method::Method;
+use redirect::Redirect;
+use reqwest::RequestBuilder;
+use std::collections::HashMap;
+use tauri::{AppHandle, Manager, Runtime, State};
 
 #[derive(Debug, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct FetchOptions {
-    response_type: PayloadType,
     #[serde(default = "default_method")]
     method: Method,
-    headers: Option<HeaderMap>,
-    cookies: Option<HashMap<String, String>>,
-    redirect: Option<Redirect>,
-    body: Option<Body>,
+    #[serde(default = "HeaderMap::new")]
+    headers: HeaderMap,
+    #[serde(default = "HashMap::new")]
+    cookies: HashMap<String, String>,
+    #[serde(default = "default_redirect_policy")]
+    redirect: Redirect,
+}
+
+fn default_redirect_policy() -> Redirect {
+    Redirect::Follow
 }
 
 fn default_method() -> Method {
     Method::GET
 }
 
-#[derive(Debug, serde::Deserialize)]
-#[serde(tag = "type", rename_all = "camelCase")]
-enum Redirect {
-    None,
-    Limited { max: usize },
-}
-
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-enum PayloadType {
-    Binary,
-    Text,
-    Discard,
-}
-
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
-#[serde(tag = "type", content = "payload", rename_all = "camelCase")]
-enum Body {
-    Binary(Vec<u8>),
-    Text(String),
-}
-
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 struct Response {
     url: String,
     status: u16,
     headers: HeaderMap,
     cookies: HashMap<String, String>,
-    body: Option<Body>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -82,73 +67,72 @@ impl Error {
 }
 
 #[tauri::command]
-async fn fetch(
+async fn fetch<R: tauri::Runtime>(
+    app_handle: AppHandle<R>,
     state: State<'_, CookieFetchState>,
+    ipc_state: State<'_, IpcState>,
     url: String,
+    id: usize,
     options: Option<FetchOptions>,
 ) -> Result<Response, Error> {
-    let client = state.pool.get().await;
+    let session = match ipc_state.session(id) {
+        Ok(e) => e,
+        Err(e) => return Err(Error::from_std_error(&e)),
+    };
+
+    let client = state.client_pool.get().await;
     let url = match reqwest::Url::parse(&url) {
         Ok(v) => v,
         Err(e) => return Err(Error::from_std_error(&e)),
     };
 
     let Some(options) = options else {
-        return proxy(
+        return fetch_core(
+            app_handle,
+            id,
             &client,
-            PayloadType::Binary,
-            client.request(reqwest::Method::GET, url).send(),
+            session,
+            client.request(reqwest::Method::GET, url),
         )
         .await;
     };
 
-    let response_type = options.response_type;
-
-    if let Some(cookies) = options.cookies {
+    {
         let mut cookies_store = client.cookie_store();
-        for (name, value) in cookies {
+        for (name, value) in options.cookies {
             let cookie = reqwest_cookie_store::RawCookie::new(name, value);
             if let Some(e) = cookies_store.insert_raw(&cookie, &url).err() {
                 return Err(Error::from_std_error(&e));
             }
         }
-    };
+    }
 
-    if let Some(policy) = options.redirect {
+    {
         let mut redirect_policy = client.redirect_policy();
-        match policy {
-            Redirect::None => *redirect_policy = RedirectPolicy::none(),
-            Redirect::Limited { max } => *redirect_policy = RedirectPolicy::limited(max),
+        match options.redirect {
+            Redirect::Follow => *redirect_policy = RedirectPolicy::follow(),
+            Redirect::Manual => *redirect_policy = RedirectPolicy::limited(0),
+            Redirect::Limit { limit } => *redirect_policy = RedirectPolicy::limited(limit),
         }
     }
 
-    let builder = client.request(options.method.into(), url);
+    let mut builder = client.request(options.method.into(), url);
 
-    let builder = if let Some(headers) = options.headers {
-        builder.headers(headers.into())
-    } else {
-        builder
-    };
+    builder = builder.headers(options.headers.into());
 
-    let builder = if let Some(body) = options.body {
-        let body = match body {
-            Body::Binary(vec) => reqwest::Body::from(vec),
-            Body::Text(text) => reqwest::Body::from(text),
-        };
-        builder.body(body)
-    } else {
-        builder
-    };
-
-    return proxy(&client, response_type, builder.send()).await;
+    return fetch_core(app_handle, id, &client, session, builder).await;
 }
 
-async fn proxy(
+async fn fetch_core<R: tauri::Runtime>(
+    app: AppHandle<R>,
+    id: usize,
     client: &CookieClient,
-    response_type: PayloadType,
-    future: impl Future<Output = Result<reqwest::Response, reqwest::Error>>,
+    session: IpcSession,
+    mut request: RequestBuilder,
 ) -> Result<Response, Error> {
-    let res = match future.await {
+    let body = reqwest::Body::wrap_stream(no_error_stream(session.request_receiver));
+    request = request.body(body);
+    let res = match request.send().await {
         Ok(v) => v,
         Err(e) => return Err(Error::from(e)),
     };
@@ -162,43 +146,64 @@ async fn proxy(
     let url = res.url().to_string();
     let status = res.status().as_u16();
     let headers = res.headers().clone().into();
+    let mut stream = res.bytes_stream();
+    tauri::async_runtime::spawn({
+        let mut sender = session.response_sender;
+        async move {
+            loop {
+                let Some(result) = stream.next().await else {
+                    break;
+                };
+                let Ok(chunk) = result else {
+                    break;
+                };
 
-    let body = match response_type {
-        PayloadType::Binary => match res.bytes().await {
-            Ok(v) => Some(Body::Binary(v.to_vec())),
-            Err(e) => return Err(Error::from(e)),
-        },
-        PayloadType::Text => match res.text().await {
-            Ok(v) => Some(Body::Text(v)),
-            Err(e) => return Err(Error::from(e)),
-        },
-        PayloadType::Discard => None,
-    };
+                let Ok(_) = sender.send(chunk).await else {
+                    break;
+                };
+
+                app.emit_all("cookie-fetch-ipc:ready-to-pop", id).unwrap();
+            }
+            sender.close().await.unwrap();
+        }
+    });
 
     let res = Response {
         url,
         status,
         headers,
         cookies,
-        body,
     };
 
     Ok(res)
 }
 
-pub fn init<R: Runtime>() -> TauriPlugin<R> {
-    Builder::new("cookie_fetch")
+fn no_error_stream<S: Stream>(
+    stream: S,
+) -> impl TryStream<Ok = S::Item, Error = Box<dyn std::error::Error + 'static + Send + Sync>> {
+    stream.map(|s| Ok(s))
+}
+
+struct CookieFetchState {
+    client_pool: CookieClientPool,
+}
+
+pub fn init<R: Runtime>(builder: tauri::plugin::Builder<R>) -> tauri::plugin::Builder<R> {
+    builder
         .setup(|app| {
             app.manage(CookieFetchState {
-                pool: CookieClientPool::new(),
+                client_pool: CookieClientPool::new(),
             });
 
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![fetch])
-        .build()
 }
 
-struct CookieFetchState {
-    pool: CookieClientPool,
+#[derive(Debug, thiserror::Error)]
+enum SendingError {
+    #[error(transparent)]
+    Reqwest(#[from] reqwest::Error),
+    #[error(transparent)]
+    Connection(#[from] futures::channel::mpsc::SendError),
 }

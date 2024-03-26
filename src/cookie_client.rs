@@ -9,13 +9,13 @@ pub struct CookieClient {
 }
 
 pub enum RedirectPolicy {
-    None,
+    Follow,
     Limited(usize),
 }
 
 impl RedirectPolicy {
-    pub fn none() -> Self {
-        Self::None
+    pub fn follow() -> Self {
+        Self::Follow
     }
 
     pub fn limited(max: usize) -> Self {
@@ -24,7 +24,7 @@ impl RedirectPolicy {
 
     fn check(&mut self, attempt: Attempt<'_>) -> redirect::Action {
         match self {
-            RedirectPolicy::None => attempt.follow(),
+            RedirectPolicy::Follow => attempt.follow(),
             RedirectPolicy::Limited(n) => {
                 if *n == 0 {
                     attempt.stop()

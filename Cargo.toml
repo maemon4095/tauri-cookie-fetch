@@ -1,17 +1,21 @@
 [package]
 name = "tauri-plugin-cookie-fetch"
-version = "0.1.0"
+version = "0.2.0"
+description = "fetch with cookie"
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+exclude = ["/examples"]
 
 [dependencies]
-reqwest = { version = "^0.11", features = ["cookies"] }
-reqwest_cookie_store = "^0.6"
-deadpool = "^0.10"
-async-trait = "^0.1"
-tauri = { version = "1.5", features = ["shell-open", "http-api"] }
+reqwest = { version = "0.11", features = ["cookies", "stream"] }
+reqwest_cookie_store = "0.6"
+deadpool = "0.10"
+async-trait = "0.1"
+tauri = { version = "1.6", features = ["shell-open", "http-api"] }
 serde = { version = "1.0", features = ["derive"] }
+pigeonhole = { git = "https://github.com/maemon4095/pigeonhole-rs.git", branch = "release/v0.3.0" }
+futures = "0.3"
+bytes = "1.5.0"
+thiserror = "1.0.58"
 
 [dev-dependencies]
-serde_json = "1.0.108"
+serde_json = "1.0"

@@ -5,6 +5,7 @@ use std::{
 
 #[derive(Debug)]
 pub struct Method(reqwest::Method);
+
 #[allow(unused)]
 impl Method {
     pub const GET: Method = Method(reqwest::Method::GET);

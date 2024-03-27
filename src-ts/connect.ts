@@ -46,8 +46,9 @@ export async function connect() {
                             break;
                         }
                         case 200: {
-                            const buf = await res.arrayBuffer();
-                            controller.enqueue(new Uint8Array(buf));
+                            for await (const chunk of res.body!) {
+                                controller.enqueue(chunk);
+                            }
                             break;
                         }
                         case 204: {

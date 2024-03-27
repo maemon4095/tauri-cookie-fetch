@@ -46,8 +46,19 @@ export async function connect() {
                             break;
                         }
                         case 200: {
-                            for await (const chunk of res.body!) {
-                                controller.enqueue(chunk);
+                            console.log(res.body);
+                            // Depending on enviroment, ReadableStream may not be AsyncIterable.
+                            const reader = res.body!.getReader();
+                            try {
+                                while (true) {
+                                    const { done, value } = await reader.read();
+                                    if (done) {
+                                        break;
+                                    }
+                                    controller.enqueue(value);
+                                }
+                            } finally {
+                                reader.releaseLock();
                             }
                             break;
                         }

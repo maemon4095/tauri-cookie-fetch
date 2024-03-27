@@ -1,5 +1,6 @@
 import TAURI from "./deps.ts";
 import { customSchemeLocalHost } from "./utils.ts";
+import { Lock } from "./lock.ts";
 
 const { listen } = TAURI.event;
 const { invoke } = TAURI.tauri;
@@ -29,27 +30,33 @@ export async function connect() {
         }
     });
 
+    const downstreamLock = new Lock();
     const downstream = new ReadableStream({
         type: "bytes",
         start(controller) {
             readyToPopListeners[id] = async () => {
-                const res = await fetch(popURL, {
-                    method: "POST",
-                });
+                await downstreamLock.acquire();
+                try {
+                    const res = await fetch(popURL, {
+                        method: "POST",
+                    });
 
-                switch (res.status) {
-                    case 100: {
-                        break;
+                    switch (res.status) {
+                        case 100: {
+                            break;
+                        }
+                        case 200: {
+                            const buf = await res.arrayBuffer();
+                            controller.enqueue(new Uint8Array(buf));
+                            break;
+                        }
+                        case 204: {
+                            controller.close();
+                            break;
+                        }
                     }
-                    case 200: {
-                        const buf = await res.arrayBuffer();
-                        controller.enqueue(new Uint8Array(buf));
-                        break;
-                    }
-                    case 204: {
-                        controller.close();
-                        break;
-                    }
+                } finally {
+                    downstreamLock.release();
                 }
             };
         },

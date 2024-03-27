@@ -1,0 +1,12 @@
+{
+  "tasks": {
+    "build": "deno run --allow-read --allow-write --allow-env --allow-run --allow-net build.ts"
+  },
+  "compilerOptions": {
+    "lib": [
+      "deno.window",
+      "dom",
+      "dom.iterable"
+    ]
+  }
+}

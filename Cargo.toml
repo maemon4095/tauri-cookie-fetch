@@ -4,6 +4,7 @@ version = "0.2.0"
 description = "fetch with cookie"
 edition = "2021"
 exclude = ["/examples"]
+build = "./build.rs"
 
 [dependencies]
 reqwest = { version = "0.11", features = ["cookies", "stream"] }

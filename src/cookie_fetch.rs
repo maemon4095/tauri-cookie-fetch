@@ -12,11 +12,11 @@ use method::Method;
 use redirect::Redirect;
 use reqwest::RequestBuilder;
 use std::collections::HashMap;
-use tauri::{AppHandle, Manager, Runtime, State};
+use tauri::{AppHandle, Manager, State};
 
 #[derive(Debug, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct FetchOptions {
+pub struct FetchOptions {
     #[serde(default = "default_method")]
     method: Method,
     #[serde(default = "HeaderMap::new")]
@@ -37,7 +37,7 @@ fn default_method() -> Method {
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
-struct Response {
+pub struct Response {
     url: String,
     status: u16,
     headers: HeaderMap,
@@ -45,7 +45,7 @@ struct Response {
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
-struct Error {
+pub struct Error {
     url: Option<String>,
     message: String,
 }
@@ -66,8 +66,7 @@ impl Error {
     }
 }
 
-#[tauri::command]
-async fn fetch<R: tauri::Runtime>(
+pub async fn fetch<R: tauri::Runtime>(
     app_handle: AppHandle<R>,
     state: State<'_, CookieFetchState>,
     ipc_state: State<'_, IpcState>,
@@ -165,6 +164,7 @@ async fn fetch_core<R: tauri::Runtime>(
                 app.emit_all("cookie-fetch-ipc:ready-to-pop", id).unwrap();
             }
             sender.close().await.unwrap();
+            app.emit_all("cookie-fetch-ipc:ready-to-pop", id).unwrap();
         }
     });
 
@@ -184,26 +184,12 @@ fn no_error_stream<S: Stream>(
     stream.map(|s| Ok(s))
 }
 
-struct CookieFetchState {
+pub struct CookieFetchState {
     client_pool: CookieClientPool,
 }
 
-pub fn init<R: Runtime>(builder: tauri::plugin::Builder<R>) -> tauri::plugin::Builder<R> {
-    builder
-        .setup(|app| {
-            app.manage(CookieFetchState {
-                client_pool: CookieClientPool::new(),
-            });
-
-            Ok(())
-        })
-        .invoke_handler(tauri::generate_handler![fetch])
-}
-
-#[derive(Debug, thiserror::Error)]
-enum SendingError {
-    #[error(transparent)]
-    Reqwest(#[from] reqwest::Error),
-    #[error(transparent)]
-    Connection(#[from] futures::channel::mpsc::SendError),
+pub fn setup<R: tauri::Runtime>(app: &AppHandle<R>) {
+    app.manage(CookieFetchState {
+        client_pool: CookieClientPool::new(),
+    });
 }

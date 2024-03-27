@@ -1,0 +1,26 @@
+{
+  "build": {
+    "beforeDevCommand": "deno run -A serve.ts",
+    "devPath": "http://localhost:1415",
+    "distDir": "../dist"
+  },
+  "package": {
+    "productName": "deno",
+    "version": "0.0.0"
+  },
+  "tauri": {
+    "allowlist": {
+      "all": true
+    },
+    "windows": [
+      {
+        "title": "deno",
+        "width": 800,
+        "height": 600
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  }
+}

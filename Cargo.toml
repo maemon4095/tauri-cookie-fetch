@@ -11,12 +11,12 @@ reqwest = { version = "0.11", features = ["cookies", "stream"] }
 reqwest_cookie_store = "0.6"
 deadpool = "0.10"
 async-trait = "0.1"
-tauri = { version = "1.6", features = ["shell-open", "http-api"] }
-serde = { version = "1.0", features = ["derive"] }
+tauri = { version = "1", features = ["shell-open", "http-api"] }
+serde = { version = "1", features = ["derive"] }
 pigeonhole = { git = "https://github.com/maemon4095/pigeonhole-rs.git", branch = "release/v0.3.0" }
 futures = "0.3"
-bytes = "1.5.0"
-thiserror = "1.0.58"
+bytes = "1.5"
+thiserror = "1"
 
 [dev-dependencies]
 serde_json = "1.0"

@@ -1,6 +1,6 @@
 [package]
 name = "tauri-plugin-cookie-fetch"
-version = "0.2.2"
+version = "0.2.3"
 description = "fetch with cookie"
 edition = "2021"
 exclude = ["/examples"]

@@ -46,7 +46,6 @@ export async function connect() {
                             break;
                         }
                         case 200: {
-                            console.log(res.body);
                             // Depending on enviroment, ReadableStream may not be AsyncIterable.
                             const reader = res.body!.getReader();
                             try {

@@ -3,11 +3,16 @@
         "./src-tauri/Cargo.toml"
     ],
     "deno.enable": true,
-    "deno.lint": true,
-    "deno.unstable": false,
     "deno.enablePaths": [
         "./src",
         "./serve.ts",
         "./src-server"
-    ]
+    ],
+    "deno.config": "./deno.json",
+    "files.associations": {
+        "*.css": "tailwindcss"
+    },
+    "editor.quickSuggestions": {
+        "strings": "on"
+    },
 }

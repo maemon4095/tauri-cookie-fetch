@@ -1,5 +1,6 @@
 import { h, render } from "preact";
 import App from "./App.tsx";
+
 // deno-lint-ignore no-unused-labels
 DEV: {
   new EventSource("/esbuild").addEventListener("change", (e) => {

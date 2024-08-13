@@ -16,7 +16,7 @@ export type Response = {
     status: number,
     headers: HeaderMap;
     cookies: Record<string, string>;
-    body: Uint8Array;
+    body: Array<number>;
 };
 
 export async function cookieFetch(url: string | URL, options?: FetchOptions): Promise<Response> {

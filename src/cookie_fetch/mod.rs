@@ -2,11 +2,8 @@ mod headermap;
 mod method;
 mod redirect;
 
-use crate::{
-    cookie_client::{CookieClient, CookieClientPool, RedirectPolicy},
-    cookie_fetch_ipc::{IpcSession, IpcState},
-};
-use futures::{SinkExt, Stream, StreamExt, TryStream};
+use crate::cookie_client::{CookieClient, CookieClientPool, RedirectPolicy};
+use bytes::Bytes;
 use headermap::HeaderMap;
 use method::Method;
 use redirect::Redirect;
@@ -25,6 +22,8 @@ pub struct FetchOptions {
     cookies: HashMap<String, String>,
     #[serde(default = "default_redirect_policy")]
     redirect: Redirect,
+    #[serde(default = "Vec::new")]
+    body: Vec<u8>,
 }
 
 fn default_redirect_policy() -> Redirect {
@@ -42,6 +41,7 @@ pub struct Response {
     status: u16,
     headers: HeaderMap,
     cookies: HashMap<String, String>,
+    body: Bytes,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -66,19 +66,11 @@ impl Error {
     }
 }
 
-pub async fn fetch<R: tauri::Runtime>(
-    app_handle: AppHandle<R>,
+pub async fn fetch(
     state: State<'_, CookieFetchState>,
-    ipc_state: State<'_, IpcState>,
     url: String,
-    id: usize,
     options: Option<FetchOptions>,
 ) -> Result<Response, Error> {
-    let session = match ipc_state.session(id) {
-        Ok(e) => e,
-        Err(e) => return Err(Error::from_std_error(&e)),
-    };
-
     let client = state.client_pool.get().await;
     let url = match reqwest::Url::parse(&url) {
         Ok(v) => v,
@@ -86,14 +78,7 @@ pub async fn fetch<R: tauri::Runtime>(
     };
 
     let Some(options) = options else {
-        return fetch_core(
-            app_handle,
-            id,
-            &client,
-            session,
-            client.request(reqwest::Method::GET, url),
-        )
-        .await;
+        return fetch_core(&client, client.request(reqwest::Method::GET, url)).await;
     };
 
     {
@@ -115,22 +100,15 @@ pub async fn fetch<R: tauri::Runtime>(
         }
     }
 
-    let mut builder = client.request(options.method.into(), url);
+    let builder = client
+        .request(options.method.into(), url)
+        .headers(options.headers.into())
+        .body(options.body);
 
-    builder = builder.headers(options.headers.into());
-
-    return fetch_core(app_handle, id, &client, session, builder).await;
+    return fetch_core(&client, builder).await;
 }
 
-async fn fetch_core<R: tauri::Runtime>(
-    app: AppHandle<R>,
-    id: usize,
-    client: &CookieClient,
-    session: IpcSession,
-    mut request: RequestBuilder,
-) -> Result<Response, Error> {
-    let body = reqwest::Body::wrap_stream(no_error_stream(session.request_receiver));
-    request = request.body(body);
+async fn fetch_core(client: &CookieClient, request: RequestBuilder) -> Result<Response, Error> {
     let res = match request.send().await {
         Ok(v) => v,
         Err(e) => return Err(Error::from(e)),
@@ -145,51 +123,32 @@ async fn fetch_core<R: tauri::Runtime>(
     let url = res.url().to_string();
     let status = res.status().as_u16();
     let headers = res.headers().clone().into();
-    let mut stream = res.bytes_stream();
-    tauri::async_runtime::spawn({
-        let mut sender = session.response_sender;
-        async move {
-            loop {
-                let Some(result) = stream.next().await else {
-                    break;
-                };
-                let Ok(chunk) = result else {
-                    break;
-                };
-
-                let Ok(_) = sender.send(chunk).await else {
-                    break;
-                };
-
-                app.emit_all("cookie-fetch-ipc:ready-to-pop", id).unwrap();
-            }
-            sender.close().await.unwrap();
-            app.emit_all("cookie-fetch-ipc:ready-to-pop", id).unwrap();
-        }
-    });
+    let body = match res.bytes().await {
+        Ok(v) => v,
+        Err(e) => return Err(Error::from(e)),
+    };
 
     let res = Response {
         url,
         status,
         headers,
         cookies,
+        body,
     };
 
     Ok(res)
-}
-
-fn no_error_stream<S: Stream>(
-    stream: S,
-) -> impl TryStream<Ok = S::Item, Error = Box<dyn std::error::Error + 'static + Send + Sync>> {
-    stream.map(|s| Ok(s))
 }
 
 pub struct CookieFetchState {
     client_pool: CookieClientPool,
 }
 
-pub fn setup<R: tauri::Runtime>(app: &AppHandle<R>) {
+pub fn setup<R: tauri::Runtime>(
+    app: &AppHandle<R>,
+) -> Result<(), Box<dyn std::error::Error + 'static>> {
     app.manage(CookieFetchState {
         client_pool: CookieClientPool::new(),
     });
+
+    Ok(())
 }

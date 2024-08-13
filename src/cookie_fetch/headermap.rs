@@ -1,12 +1,11 @@
-use std::{
-    ops::{Deref, DerefMut},
-    str::FromStr,
-};
-
 use reqwest::header::{HeaderName, HeaderValue};
 use serde::{
     de::DeserializeSeed,
     ser::{SerializeMap, SerializeSeq},
+};
+use std::{
+    ops::{Deref, DerefMut},
+    str::FromStr,
 };
 
 #[derive(Debug)]

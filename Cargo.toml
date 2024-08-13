@@ -1,23 +1,18 @@
 [package]
 name = "tauri-plugin-cookie-fetch"
-version = "0.2.3"
+version = "0.3.0"
 description = "fetch with cookie"
 edition = "2021"
-exclude = ["/examples"]
 build = "./build.rs"
 
 [dependencies]
-reqwest = { version = "0.11", features = ["cookies", "stream"] }
+reqwest = { version = "0.11", features = ["cookies"] }
 reqwest_cookie_store = "0.6"
 deadpool = "0.10"
 async-trait = "0.1"
 tauri = { version = "1", features = ["shell-open", "http-api"] }
 serde = { version = "1", features = ["derive"] }
-pigeonhole = { git = "https://github.com/maemon4095/pigeonhole-rs.git", branch = "release/v0.3.0" }
-futures = "0.3"
 bytes = "1.5"
-thiserror = "1"
-rand = { version = "0.8", features = ["small_rng"] }
 
 [dev-dependencies]
 serde_json = "1.0"

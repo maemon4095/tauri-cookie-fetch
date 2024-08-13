@@ -1,6 +1,6 @@
+use reqwest::redirect::{self, Attempt};
 use std::sync::{Arc, Mutex, MutexGuard};
 
-use reqwest::redirect::{self, Attempt};
 struct ClientPoolManager;
 pub struct CookieClient {
     client: reqwest::Client,

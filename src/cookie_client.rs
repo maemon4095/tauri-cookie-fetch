@@ -62,7 +62,7 @@ impl CookieClient {
 #[async_trait::async_trait]
 impl deadpool::managed::Manager for ClientPoolManager {
     type Type = CookieClient;
-    type Error = ();
+    type Error = reqwest::Error;
 
     async fn create(&self) -> Result<Self::Type, Self::Error> {
         let redirect_policy = default_redirect_policy();
@@ -76,10 +76,15 @@ impl deadpool::managed::Manager for ClientPoolManager {
             .cookie_provider(Arc::clone(&cookie_store))
             .redirect(redirect::Policy::custom({
                 let policy = redirect_policy.clone();
-                move |a| policy.lock().unwrap().check(a)
+                move |a| {
+                    if let Ok(mut c) = policy.lock() {
+                        c.check(a)
+                    } else {
+                        a.stop()
+                    }
+                }
             }))
-            .build()
-            .unwrap();
+            .build()?;
 
         Ok(CookieClient {
             client,

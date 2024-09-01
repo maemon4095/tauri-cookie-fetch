@@ -51,7 +51,7 @@ impl serde::Serialize for HeaderMap {
     where
         S: serde::Serializer,
     {
-        let mut headermap = serializer.serialize_map(Some(self.len()))?;
+        let mut headermap = serializer.serialize_map(Some(self.keys_len()))?;
 
         for key in self.keys() {
             headermap.serialize_entry(key.as_str(), &GetAllWrapper(self.get_all(key)))?;
@@ -68,7 +68,8 @@ impl<'a> serde::Serialize for GetAllWrapper<'a> {
     where
         S: serde::Serializer,
     {
-        let mut seq = serializer.serialize_seq(None)?;
+        let len = self.0.iter().count();
+        let mut seq = serializer.serialize_seq(Some(len))?;
         for val in self.0.iter() {
             match val.to_str() {
                 Ok(s) => seq.serialize_element(s)?,
@@ -105,6 +106,7 @@ impl<'de> serde::Deserialize<'de> for HeaderMap {
                     let Some(key): Option<&str> = access.next_key()? else {
                         break;
                     };
+
                     let key = match HeaderName::from_str(key) {
                         Ok(k) => k,
                         Err(e) => {

@@ -1,7 +1,13 @@
-pub mod cookie_client;
+mod config;
 mod cookie_fetch;
+mod scope;
+mod state;
 
-use cookie_fetch::{CookieFetchState, FetchError, FetchOptions, Response};
+pub mod cookie_client;
+
+use cookie_client::{CookieClient, CookieClientPool, RedirectPolicy};
+use cookie_fetch::{FetchError, FetchOptions, Response};
+use state::CookieFetchState;
 use tauri::{AppHandle, Manager};
 use tauri_plugin_bin_ipc::{bin_command, generate_bin_handler, PluginBuilderBinIpcExtension};
 
@@ -11,14 +17,22 @@ async fn fetch<R: tauri::Runtime>(
     url: String,
     options: Option<FetchOptions>,
 ) -> Result<Response, FetchError> {
-    let state = app.state::<CookieFetchState>();
-    let res = cookie_fetch::fetch(state, url, options).await?;
+    let res = cookie_fetch::fetch(app, url, options).await?;
     Ok(res)
 }
 
-pub fn init<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
-    tauri::plugin::Builder::<R>::new("cookie-fetch")
-        .bin_ipc_handler("cookie-fetch", generate_bin_handler![fetch])
-        .setup(cookie_fetch::setup)
+const PLUGIN_NAME: &str = "cookie-fetch";
+
+pub fn init<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R, config::Config> {
+    tauri::plugin::Builder::new(PLUGIN_NAME)
+        .bin_ipc_handler(PLUGIN_NAME, generate_bin_handler![fetch])
+        .setup_with_config(|app, config| {
+            app.manage(CookieFetchState {
+                client_pool: CookieClientPool::new(),
+                config,
+            });
+
+            Ok(())
+        })
         .build()
 }

@@ -3,12 +3,21 @@
 pub struct CookieProps {
     pub value: String,
     pub path: String,
+    #[serde(default)]
     pub httponly: Option<bool>,
+
+    #[serde(default)]
     pub secure: Option<bool>,
+
+    #[serde(default)]
     #[serde(with = "duration_serde")]
     pub max_age: Option<cookie::time::Duration>,
+
+    #[serde(default)]
     #[serde(with = "offset_datetime_serde")]
     pub expires: Option<cookie::time::OffsetDateTime>,
+
+    #[serde(default)]
     #[serde(with = "same_site_serde")]
     pub same_site: Option<cookie::SameSite>,
 }
@@ -111,13 +120,18 @@ mod duration_serde {
         deserializer.deserialize_f64(Visitor)
     }
 }
-
+/// RFC2822のdate formatで`OffsetDateTime`をシリアライズする。
+///
+/// httpのdate formatはRFC7231のIMF-fixdate
+/// https://www.rfc-editor.org/rfc/rfc7231#section-7.1.1.1
+///
+/// IMF-fixdateはRFC5322で指定されたフォーマットであり、RFC5322はRFC2822の更新版。
+/// https://www.rfc-editor.org/rfc/rfc5322#section-3.3
+/// https://datatracker.ietf.org/doc/html/rfc2822#section-3.3
 mod offset_datetime_serde {
-    type Me = Option<cookie::time::OffsetDateTime>;
+    use cookie::time::format_description::well_known::Rfc2822;
 
-    const DATE_FMT: &[time::format_description::FormatItem<'_>] =cookie::time::macros::format_description!(
-        "[weekday repr:short case_sensitive:true], [day] [month repr:short case_sensitive:true] [year repr:full] [hour repr:24]:[minute]:[second] GMT"
-    );
+    type Me = Option<cookie::time::OffsetDateTime>;
 
     pub fn serialize<S>(me: &Me, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -128,7 +142,7 @@ mod offset_datetime_serde {
         };
 
         let date_str = me
-            .format(DATE_FMT)
+            .format(&Rfc2822)
             .map_err(<S::Error as serde::ser::Error>::custom)?;
         serializer.serialize_str(&date_str)
     }
@@ -148,7 +162,7 @@ mod offset_datetime_serde {
             where
                 E: serde::de::Error,
             {
-                let date = cookie::time::OffsetDateTime::parse(v, DATE_FMT)
+                let date = cookie::time::OffsetDateTime::parse(v, &Rfc2822)
                     .map_err(<E as serde::de::Error>::custom)?;
                 Ok(Some(date))
             }
@@ -161,6 +175,6 @@ mod offset_datetime_serde {
             }
         }
 
-        deserializer.deserialize_f64(Visitor)
+        deserializer.deserialize_str(Visitor)
     }
 }

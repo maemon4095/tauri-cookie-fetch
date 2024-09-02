@@ -60,5 +60,14 @@
         "width": 800
       }
     ]
+  },
+  "plugins": {
+    "cookie-fetch": {
+      "scope": {
+        "allowlist": [
+          "https://*.dlsite.com/*"
+        ]
+      }
+    }
   }
 }

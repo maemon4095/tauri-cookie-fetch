@@ -1,21 +1,27 @@
-use super::{
-    CookieClient, CookieFetchState, CookieProps, FetchError, FetchOptions, Redirect,
-    RedirectPolicy, Response,
-};
+use super::{CookieProps, FetchError, FetchOptions, Redirect, Response};
+use crate::{CookieClient, CookieFetchState, RedirectPolicy};
 use reqwest::RequestBuilder;
 use std::collections::HashMap;
-use tauri::State;
+use tauri::{Manager, State};
 
-pub async fn fetch(
-    state: State<'_, CookieFetchState>,
+// TODO: エラーをわかりやすくしたい。bin-ipcに手をいれる必要があるかも。
+pub async fn fetch<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
     url: String,
     options: Option<FetchOptions>,
 ) -> Result<Response, FetchError> {
-    let client = state.client_pool.get().await;
     let url = match reqwest::Url::parse(&url) {
         Ok(v) => v,
         Err(e) => return Err(FetchError::from_std_error(&e)),
     };
+
+    let state: State<'_, CookieFetchState> = app.state();
+
+    if !state.config.scope.is_allowed(&url) {
+        return Err(FetchError::NotAllowed);
+    }
+
+    let client = state.client_pool.get().await;
 
     let Some(options) = options else {
         return fetch_core(&client, client.request(reqwest::Method::GET, url)).await;

@@ -6,18 +6,23 @@ mod state;
 pub mod cookie_client;
 
 use cookie_client::{CookieClient, CookieClientPool, RedirectPolicy};
-use cookie_fetch::{FetchError, FetchOptions, Response};
+use cookie_fetch::{FetchOptions, Response};
 use state::CookieFetchState;
 use tauri::{AppHandle, Manager};
-use tauri_plugin_bin_ipc::{bin_command, generate_bin_handler, PluginBuilderBinIpcExtension};
+use tauri_plugin_bin_ipc::{
+    bin_command, generate_bin_handler, BinIpcError, PluginBuilderBinIpcExtension,
+};
 
 #[bin_command]
 async fn fetch<R: tauri::Runtime>(
     app: AppHandle<R>,
     url: String,
     options: Option<FetchOptions>,
-) -> Result<Response, FetchError> {
-    let res = cookie_fetch::fetch(app, url, options).await?;
+) -> Result<Response, BinIpcError> {
+    let res = cookie_fetch::fetch(app, url, options)
+        .await
+        .map_err(BinIpcError::new_reportable)?;
+
     Ok(res)
 }
 

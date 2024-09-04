@@ -1,4 +1,4 @@
-import { invoke } from "https://raw.githubusercontent.com/maemon4095/tauri-plugin-bin-ipc/release/v0.2.0/src-ts/mod.ts";
+import { invoke } from "https://raw.githubusercontent.com/maemon4095/tauri-plugin-bin-ipc/release/v0.3.0/src-ts/mod.ts";
 
 export type FetchOptions = {
     method?: string;

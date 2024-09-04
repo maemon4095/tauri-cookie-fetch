@@ -4,7 +4,9 @@ import generateIndexFile, {
     linking,
 } from "jsr:@maemon4095-esbuild-x/plugin-generate-index-file@0.6";
 import { denoPlugins } from "jsr:@luca/esbuild-deno-loader@0.10";
-import loaderOverride from "jsr:@maemon4095-esbuild-x/plugin-loader-override@0.1.0";
+import tailwindConfig from "./tailwind.config.js";
+import postcssPlugin from "jsr:@maemon4095-esbuild-x/plugin-postcss";
+import tailwindcss from "npm:tailwindcss";
 
 const mode = Deno.args[0];
 switch (mode) {
@@ -76,11 +78,10 @@ async function createContext(
         sourcemap: mode !== "build",
         plugins: [
             cleanOutdir(),
-            loaderOverride({
-                importMap: configPath,
-                loader: {
-                    ".svg": "file",
-                },
+            postcssPlugin({
+                plugins: [
+                    tailwindcss(tailwindConfig),
+                ],
             }),
             generateIndexFile({
                 generate: () => [

@@ -65,7 +65,7 @@
     "cookie-fetch": {
       "scope": {
         "allowlist": [
-          "https://*.dlsite.com/*"
+          "https://*"
         ]
       }
     }

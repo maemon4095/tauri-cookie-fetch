@@ -3258,8 +3258,8 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin-bin-ipc"
-version = "0.2.0"
-source = "git+https://github.com/maemon4095/tauri-plugin-bin-ipc.git?branch=release/v0.2.0#a09388a6f28bd48cc6a48a739ea22561d70071b5"
+version = "0.3.0"
+source = "git+https://github.com/maemon4095/tauri-plugin-bin-ipc.git?branch=release/v0.3.0#7a4a27574b24dad9183bcaff732101650ccac951"
 dependencies = [
  "tauri-plugin-bin-ipc-core",
  "tauri-plugin-bin-ipc-msgpack",
@@ -3267,10 +3267,11 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin-bin-ipc-core"
-version = "0.2.0"
-source = "git+https://github.com/maemon4095/tauri-plugin-bin-ipc.git?branch=release/v0.2.0#a09388a6f28bd48cc6a48a739ea22561d70071b5"
+version = "0.3.0"
+source = "git+https://github.com/maemon4095/tauri-plugin-bin-ipc.git?branch=release/v0.3.0#7a4a27574b24dad9183bcaff732101650ccac951"
 dependencies = [
  "futures",
+ "percent-encoding",
  "pigeonhole",
  "rand 0.8.5",
  "serde",
@@ -3281,8 +3282,8 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin-bin-ipc-msgpack"
-version = "0.2.0"
-source = "git+https://github.com/maemon4095/tauri-plugin-bin-ipc.git?branch=release/v0.2.0#a09388a6f28bd48cc6a48a739ea22561d70071b5"
+version = "0.3.0"
+source = "git+https://github.com/maemon4095/tauri-plugin-bin-ipc.git?branch=release/v0.3.0#7a4a27574b24dad9183bcaff732101650ccac951"
 dependencies = [
  "rmp-serde",
  "serde",
@@ -3294,16 +3295,16 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin-bin-ipc-msgpack-macro"
-version = "0.2.0"
-source = "git+https://github.com/maemon4095/tauri-plugin-bin-ipc.git?branch=release/v0.2.0#a09388a6f28bd48cc6a48a739ea22561d70071b5"
+version = "0.3.0"
+source = "git+https://github.com/maemon4095/tauri-plugin-bin-ipc.git?branch=release/v0.3.0#7a4a27574b24dad9183bcaff732101650ccac951"
 dependencies = [
  "tauri-plugin-bin-ipc-msgpack-macro-impl",
 ]
 
 [[package]]
 name = "tauri-plugin-bin-ipc-msgpack-macro-impl"
-version = "0.2.0"
-source = "git+https://github.com/maemon4095/tauri-plugin-bin-ipc.git?branch=release/v0.2.0#a09388a6f28bd48cc6a48a739ea22561d70071b5"
+version = "0.3.0"
+source = "git+https://github.com/maemon4095/tauri-plugin-bin-ipc.git?branch=release/v0.3.0#7a4a27574b24dad9183bcaff732101650ccac951"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3312,8 +3313,8 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin-bin-ipc-util"
-version = "0.2.0"
-source = "git+https://github.com/maemon4095/tauri-plugin-bin-ipc.git?branch=release/v0.2.0#a09388a6f28bd48cc6a48a739ea22561d70071b5"
+version = "0.3.0"
+source = "git+https://github.com/maemon4095/tauri-plugin-bin-ipc.git?branch=release/v0.3.0#7a4a27574b24dad9183bcaff732101650ccac951"
 dependencies = [
  "tauri",
 ]

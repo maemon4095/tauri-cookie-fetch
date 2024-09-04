@@ -12,7 +12,7 @@ pub async fn fetch<R: tauri::Runtime>(
 ) -> Result<Response, FetchError> {
     let url = match reqwest::Url::parse(&url) {
         Ok(v) => v,
-        Err(e) => return Err(FetchError::from_std_error(&e)),
+        Err(_) => return Err(FetchError::InvalidUrl),
     };
 
     let state: State<'_, CookieFetchState> = app.state();
@@ -35,10 +35,10 @@ pub async fn fetch<R: tauri::Runtime>(
             for (name, mut props) in pairs {
                 url_buf
                     .set_host(Some(&domain))
-                    .map_err(|e| FetchError::from_std_error(&e))?;
+                    .map_err(|_| FetchError::InvalidCookieDomain(domain.clone()))?;
                 url_buf.set_path(&props.path);
 
-                let mut cookie = reqwest_cookie_store::RawCookie::new(name, props.value);
+                let mut cookie = reqwest_cookie_store::RawCookie::new(name.clone(), props.value);
 
                 if let Some(v) = props.httponly.take() {
                     cookie.set_http_only(v);
@@ -54,7 +54,10 @@ pub async fn fetch<R: tauri::Runtime>(
 
                 cookies_store
                     .insert_raw(&cookie, &url)
-                    .map_err(|e| FetchError::from_std_error(&e))?;
+                    .map_err(|_| FetchError::InvalidCookie {
+                        domain: domain.clone(),
+                        name,
+                    })?;
             }
         }
     }
@@ -82,7 +85,7 @@ async fn fetch_core(
 ) -> Result<Response, FetchError> {
     let res = match request.send().await {
         Ok(v) => v,
-        Err(e) => return Err(FetchError::from(e)),
+        Err(e) => return Err(FetchError::Reqwest(e)),
     };
 
     let cookies: HashMap<String, HashMap<String, CookieProps>> = {
@@ -121,7 +124,7 @@ async fn fetch_core(
     let headers = res.headers().clone().into();
     let body = match res.bytes().await {
         Ok(v) => v,
-        Err(e) => return Err(FetchError::from(e)),
+        Err(e) => return Err(FetchError::Reqwest(e)),
     };
 
     let res = Response {

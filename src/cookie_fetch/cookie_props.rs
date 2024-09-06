@@ -1,5 +1,6 @@
 #[serde_with::skip_serializing_none]
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CookieProps {
     pub value: String,
     pub path: String,

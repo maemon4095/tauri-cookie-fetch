@@ -4,7 +4,6 @@ use reqwest::RequestBuilder;
 use std::collections::HashMap;
 use tauri::{Manager, State};
 
-// TODO: エラーをわかりやすくしたい。bin-ipcに手をいれる必要があるかも。
 pub async fn fetch<R: tauri::Runtime>(
     app: tauri::AppHandle<R>,
     url: String,

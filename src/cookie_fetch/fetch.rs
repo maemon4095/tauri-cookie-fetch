@@ -39,7 +39,7 @@ pub async fn fetch<R: tauri::Runtime>(
 
                 let mut cookie = reqwest_cookie_store::RawCookie::new(name.clone(), props.value);
 
-                if let Some(v) = props.httponly.take() {
+                if let Some(v) = props.http_only.take() {
                     cookie.set_http_only(v);
                 }
 
@@ -103,7 +103,7 @@ async fn fetch_core(
                 CookieProps {
                     value: c.value().to_string(),
                     path: c.path.as_ref().to_string(),
-                    httponly: c.http_only(),
+                    http_only: c.http_only(),
                     secure: c.secure(),
                     max_age: c.max_age(),
                     expires: c.expires().and_then(|e| match e {

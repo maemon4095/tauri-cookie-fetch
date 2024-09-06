@@ -5,7 +5,7 @@ pub struct CookieProps {
     pub value: String,
     pub path: String,
     #[serde(default)]
-    pub httponly: Option<bool>,
+    pub http_only: Option<bool>,
 
     #[serde(default)]
     pub secure: Option<bool>,

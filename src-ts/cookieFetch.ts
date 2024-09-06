@@ -1,9 +1,23 @@
 import { invoke } from "https://raw.githubusercontent.com/maemon4095/tauri-plugin-bin-ipc/release/v0.3.0/src-ts/mod.ts";
 
+type SameSite = "Strict" | "Lax" | "None";
+
+export type CookieProps = {
+    value: string;
+    path: string;
+    httpOnly?: boolean;
+    secure?: boolean;
+    maxAge?: number;
+    expires?: string;
+    sameSite?: SameSite;
+};
+
+type Cookies = Record<string, Record<string, CookieProps>>;
+
 export type FetchOptions = {
     method?: string;
     headers?: HeaderMap;
-    cookies?: Record<string, string>;
+    cookies?: Cookies;
     redirect?: RedirectPolicy;
     body?: Uint8Array;
 };
@@ -15,7 +29,7 @@ export type Response = {
     url: string;
     status: number;
     headers: HeaderMap;
-    cookies: Record<string, string>;
+    cookies: Cookies;
     body: Uint8Array;
 };
 

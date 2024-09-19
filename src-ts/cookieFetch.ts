@@ -4,7 +4,8 @@ type SameSite = "Strict" | "Lax" | "None";
 
 export type CookieProps = {
     value: string;
-    path: string;
+    domain?: string;
+    path?: string;
     httpOnly?: boolean;
     secure?: boolean;
     maxAge?: number;

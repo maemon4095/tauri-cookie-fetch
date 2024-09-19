@@ -35,9 +35,16 @@ pub async fn fetch<R: tauri::Runtime>(
                 url_buf
                     .set_host(Some(&domain))
                     .map_err(|_| FetchError::InvalidCookieDomain(domain.clone()))?;
-                url_buf.set_path(&props.path);
 
                 let mut cookie = reqwest_cookie_store::RawCookie::new(name.clone(), props.value);
+
+                if let Some(v) = &props.path {
+                    cookie.set_path(v);
+                }
+
+                if let Some(v) = &props.domain {
+                    cookie.set_domain(v);
+                }
 
                 if let Some(v) = props.http_only.take() {
                     cookie.set_http_only(v);
@@ -102,7 +109,8 @@ async fn fetch_core(
                 c.name().to_string(),
                 CookieProps {
                     value: c.value().to_string(),
-                    path: c.path.as_ref().to_string(),
+                    path: c.path().map(String::from),
+                    domain: c.domain().map(String::from),
                     http_only: c.http_only(),
                     secure: c.secure(),
                     max_age: c.max_age(),

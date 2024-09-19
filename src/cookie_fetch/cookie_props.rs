@@ -3,7 +3,13 @@
 #[serde(rename_all = "camelCase")]
 pub struct CookieProps {
     pub value: String,
-    pub path: String,
+
+    #[serde(default)]
+    pub domain: Option<String>,
+
+    #[serde(default)]
+    pub path: Option<String>,
+
     #[serde(default)]
     pub http_only: Option<bool>,
 

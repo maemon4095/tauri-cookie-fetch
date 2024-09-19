@@ -122,6 +122,30 @@ mod duration_serde {
             {
                 Ok(Some(cookie::time::Duration::seconds_f64(v)))
             }
+
+            fn visit_i64<E>(self, v: i64) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(Some(cookie::time::Duration::seconds(v)))
+            }
+
+            fn visit_none<E>(self) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(None)
+            }
+
+            fn visit_u64<E>(self, v: u64) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                i64::try_from(v)
+                    .map(cookie::time::Duration::seconds)
+                    .map(Some)
+                    .map_err(<E as serde::de::Error>::custom)
+            }
         }
 
         deserializer.deserialize_f64(Visitor)
@@ -163,7 +187,7 @@ mod offset_datetime_serde {
             type Value = Me;
 
             fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                formatter.write_str("Duration")
+                formatter.write_str("RFC5322 IMF-fixdate")
             }
             fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
             where

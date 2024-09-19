@@ -3321,7 +3321,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin-cookie-fetch"
-version = "0.4.1"
+version = "0.5.1"
 dependencies = [
  "async-trait",
  "bytes",

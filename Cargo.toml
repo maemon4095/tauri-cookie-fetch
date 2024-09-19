@@ -1,6 +1,6 @@
 [package]
 name = "tauri-plugin-cookie-fetch"
-version = "0.5.1"
+version = "0.5.2"
 description = "fetch with cookie"
 edition = "2021"
 build = "./build.rs"

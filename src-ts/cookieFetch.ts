@@ -1,6 +1,6 @@
 import { invoke } from "https://raw.githubusercontent.com/maemon4095/tauri-plugin-bin-ipc/release/v0.3.0/src-ts/mod.ts";
 
-type SameSite = "Strict" | "Lax" | "None";
+export type SameSite = "Strict" | "Lax" | "None";
 
 export type CookieProps = {
     value: string;
@@ -13,7 +13,7 @@ export type CookieProps = {
     sameSite?: SameSite;
 };
 
-type Cookies = Record<string, Record<string, CookieProps>>;
+export type Cookies = Record<string, Record<string, CookieProps>>;
 
 export type FetchOptions = {
     method?: string;

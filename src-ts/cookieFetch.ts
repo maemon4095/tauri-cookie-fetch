@@ -35,8 +35,11 @@ export type Response = {
 };
 
 export async function cookieFetch(
-    url: string | URL,
+    url: string,
     options?: FetchOptions,
 ): Promise<Response> {
-    return await invoke("cookie-fetch", "fetch", { url, options }) as Response;
+    return await invoke("cookie-fetch", "fetch", {
+        url,
+        options,
+    }) as Response;
 }

@@ -38,6 +38,12 @@ export async function cookieFetch(
     url: string,
     options?: FetchOptions,
 ): Promise<Response> {
+    if (options !== undefined) {
+        const entries = Object.entries(options).filter(([, v]) =>
+            v !== undefined
+        );
+        options = Object.fromEntries(entries);
+    }
     return await invoke("cookie-fetch", "fetch", {
         url,
         options,
